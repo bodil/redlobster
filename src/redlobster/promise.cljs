@@ -71,6 +71,13 @@
   (doto (promise)
     (realise-error error-value)))
 
+(defn chain [this f]
+  (let [p (promise)]
+    (on-realised this
+                 #(realise p (f %))
+                 #(realise-error p %))
+    p))
+
 (defn await
   "Takes a list of promises, and creates a promise that will realise as
 `:redlobster.promise/realised` when each promise has successfully realised,
