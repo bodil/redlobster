@@ -12,7 +12,7 @@
 (defn promise? [v]
   (satisfies? IPromise v))
 
-(deftype Promise [ee]
+(deftype Promise [ee source]
   IDeref
   (-deref [this]
     (let [realised (.-__realised ee)
@@ -56,20 +56,34 @@
         (e/on :realise-success on-success)
         (e/on :realise-error on-error)))))
 
+(defn sourced-promise
+  ([source]
+     (Promise.
+       (let [ee (e/event-emitter)]
+         (set! (.-__realised ee) nil)
+         (set! (.-__value ee) nil)
+         ee)
+       source))
+  ([source success-value]
+     (doto (sourced-promise source)
+       (realise success-value))))
+
 (defn promise
   ([]
-     (Promise.
-      (let [ee (e/event-emitter)]
-        (set! (.-__realised ee) nil)
-        (set! (.-__value ee) nil)
-        ee)))
+   (sourced-promise nil))
   ([success-value]
-     (doto (promise)
-       (realise success-value))))
+   (sourced-promise nil success-value)))
 
 (defn promise-fail [error-value]
   (doto (promise)
     (realise-error error-value)))
+
+(defn chain [this f]
+  (let [p (sourced-promise this)]
+    (on-realised this
+                 #(realise p (f %))
+                 #(realise-error p %))
+    p))
 
 (defn await
   "Takes a list of promises, and creates a promise that will realise as
@@ -84,7 +98,7 @@ success or failure of any promise."
   [& promises]
   (let [await-all (= (first promises) :all)
         promises (if await-all (rest promises) promises)
-        p (promise)
+        p (sourced-promise promises)
         total (count promises)
         count (atom 0)
         done (atom false)]
@@ -104,7 +118,7 @@ success or failure of any promise."
     p))
 
 (defn defer-until-realised [promises callback]
-  (let [p (promise)]
+  (let [p (sourced-promise promises)]
     (on-realised (apply await promises)
                  (fn [_] (realise p (callback)))
                  (fn [error] (realise-error p error)))
