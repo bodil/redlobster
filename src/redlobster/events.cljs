@@ -6,8 +6,8 @@
   (on [emitter event listener])
   (once [emitter event listener])
   (remove-listener [emitter event listener])
-  (remove-all-listeners [emitter])
-  (remove-all-listeners [emitter event])
+  (remove-all-listeners [emitter]
+                        [emitter event])
   (listeners [emitter event])
   (emit [emitter event data]))
 
@@ -74,10 +74,11 @@
                 (.once emitter (unpack-event event) listener))
               (remove-listener [emitter event listener]
                 (.removeListener emitter (unpack-event event) listener))
-              (remove-all-listeners [emitter]
-                (.removeAllListeners emitter))
-              (remove-all-listeners [emitter event]
-                (.removeAllListeners emitter (unpack-event event)))
+              (remove-all-listeners 
+                ([emitter]
+                  (.removeAllListeners emitter))
+                ([emitter event]
+                  (.removeAllListeners emitter (unpack-event event))))
               (listeners [emitter event]
                 (js->clj (.listeners emitter (unpack-event event))))
               (emit [emitter event data]
